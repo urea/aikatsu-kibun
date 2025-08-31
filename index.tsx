@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useRef, useEffect, forwardRef, useImperativeHandle, useMemo } from 'react';
 import ReactDOM from 'react-dom/client';
 
@@ -214,6 +215,76 @@ const ConfirmationModal: React.FC<{
     );
 };
 
+const AddVideoModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onAddVideo: (url: string) => Promise<void>;
+}> = ({ isOpen, onClose, onAddVideo }) => {
+    const [urlInput, setUrlInput] = useState('');
+    const [isAddingVideo, setIsAddingVideo] = useState(false);
+    const [inputError, setInputError] = useState<string | null>(null);
+
+    const handleAddVideo = async () => {
+        setIsAddingVideo(true);
+        setInputError(null);
+        try {
+            await onAddVideo(urlInput);
+            setUrlInput(''); 
+        } catch (error: any) {
+            setInputError(error.message);
+        } finally {
+            setIsAddingVideo(false);
+        }
+    };
+
+    useEffect(() => {
+        if (isOpen) {
+            setInputError(null);
+            setUrlInput('');
+        }
+    }, [isOpen]);
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose} role="dialog" aria-modal="true">
+            <div className="bg-white dark:bg-rose-800 rounded-2xl shadow-2xl w-full max-w-lg flex flex-col" onClick={e => e.stopPropagation()}>
+                <header className="p-4 border-b border-pink-200 dark:border-rose-700 flex justify-between items-center flex-shrink-0">
+                    <h2 className="text-xl font-bold text-rose-800 dark:text-rose-200">動画を追加</h2>
+                    <button onClick={onClose} className="p-2 rounded-full text-rose-500 dark:text-rose-400 hover:bg-pink-200 dark:hover:bg-rose-700" aria-label="閉じる">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </header>
+                <div className="p-6">
+                    <p className="text-sm text-rose-600 dark:text-rose-300 mb-4">
+                        追加したいYouTube動画のURLを入力してください。
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        <input
+                            type="text"
+                            value={urlInput}
+                            onChange={(e) => setUrlInput(e.target.value)}
+                            placeholder="https://www.youtube.com/watch?v=..."
+                            className="flex-grow block w-full rounded-md border-pink-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 dark:bg-rose-700 dark:border-rose-600 dark:text-rose-200 dark:placeholder-rose-400"
+                            disabled={isAddingVideo}
+                        />
+                        <button
+                            onClick={handleAddVideo}
+                            className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400"
+                            disabled={isAddingVideo || !urlInput.trim()}
+                        >
+                            {isAddingVideo ? '追加中...' : '追加'}
+                        </button>
+                    </div>
+                    {inputError && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{inputError}</p>}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const VideoSelectionModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
@@ -221,19 +292,15 @@ const VideoSelectionModal: React.FC<{
     onSelectVideo: (id: string) => void;
     favoriteIds: string[];
     onToggleFavorite: (id: string) => void;
-    onAddVideo: (url: string) => Promise<void>;
     onResetFavorites: () => void;
     onResetUserVideos: () => void;
     isFavoritesResettable: boolean;
     isUserVideosResettable: boolean;
 }> = ({ 
-    isOpen, onClose, videos, onSelectVideo, favoriteIds, onToggleFavorite, onAddVideo,
+    isOpen, onClose, videos, onSelectVideo, favoriteIds, onToggleFavorite,
     onResetFavorites, onResetUserVideos, isFavoritesResettable, isUserVideosResettable
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
-    const [urlInput, setUrlInput] = useState('');
-    const [isAddingVideo, setIsAddingVideo] = useState(false);
-    const [inputError, setInputError] = useState<string | null>(null);
     const [confirmModalState, setConfirmModalState] = useState<{
         isOpen: boolean;
         action: 'reset-favorites' | 'reset-user-videos' | null;
@@ -249,19 +316,6 @@ const VideoSelectionModal: React.FC<{
             video.title.toLowerCase().includes(searchTerm.toLowerCase())
         );
     }, [videos, searchTerm]);
-
-    const handleAddVideo = async () => {
-        setIsAddingVideo(true);
-        setInputError(null);
-        try {
-            await onAddVideo(urlInput);
-            setUrlInput('');
-        } catch (error: any) {
-            setInputError(error.message);
-        } finally {
-            setIsAddingVideo(false);
-        }
-    };
     
     const handleFavoritesResetClick = () => {
         setConfirmModalState({
@@ -333,35 +387,13 @@ const VideoSelectionModal: React.FC<{
                         </div>
                     </header>
                     <div className="p-4 flex-shrink-0">
-                        <div className="mb-4">
-                            <input
-                                type="text"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                placeholder="動画タイトルで検索..."
-                                className="block w-full rounded-md border-pink-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 dark:bg-rose-700 dark:border-rose-600 dark:text-rose-200 dark:placeholder-rose-400"
-                            />
-                        </div>
-                        <div>
-                            <div className="flex flex-col sm:flex-row gap-2">
-                                <input
-                                    type="text"
-                                    value={urlInput}
-                                    onChange={(e) => setUrlInput(e.target.value)}
-                                    placeholder="YouTubeのURLで追加..."
-                                    className="flex-grow block w-full rounded-md border-pink-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 dark:bg-rose-700 dark:border-rose-600 dark:text-rose-200 dark:placeholder-rose-400"
-                                    disabled={isAddingVideo}
-                                />
-                                <button
-                                    onClick={handleAddVideo}
-                                    className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400"
-                                    disabled={isAddingVideo || !urlInput.trim()}
-                                >
-                                    {isAddingVideo ? '追加中...' : '追加'}
-                                </button>
-                            </div>
-                            {inputError && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{inputError}</p>}
-                        </div>
+                        <input
+                            type="text"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="動画タイトルで検索..."
+                            className="block w-full rounded-md border-pink-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 dark:bg-rose-700 dark:border-rose-600 dark:text-rose-200 dark:placeholder-rose-400"
+                        />
                     </div>
                     <div className="flex-grow overflow-y-auto px-4 pb-4">
                         {filteredVideos.length > 0 ? (
@@ -400,80 +432,237 @@ const VideoSelectionModal: React.FC<{
     );
 };
 
-
-const FavoritesCarousel: React.FC<{
+const HistoryModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
     videos: Video[];
     onSelectVideo: (id: string) => void;
-    currentVideoId: string;
-}> = ({ videos, onSelectVideo, currentVideoId }) => {
-    const scrollContainerRef = useRef<HTMLDivElement>(null);
-    const [showLeftArrow, setShowLeftArrow] = useState(false);
-    const [showRightArrow, setShowRightArrow] = useState(true);
+    onClearHistory: () => void;
+    favoriteIds: string[];
+    onToggleFavorite: (id: string) => void;
+}> = ({ isOpen, onClose, videos, onSelectVideo, onClearHistory, favoriteIds, onToggleFavorite }) => {
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
-    const checkArrows = useCallback(() => {
-        const el = scrollContainerRef.current;
-        if (!el) return;
-        setShowLeftArrow(el.scrollLeft > 0);
-        setShowRightArrow(el.scrollLeft < el.scrollWidth - el.clientWidth -1);
-    }, []);
+    if (!isOpen) return null;
 
-    useEffect(() => {
-        const el = scrollContainerRef.current;
-        if (!el) return;
-        const observer = new ResizeObserver(() => checkArrows());
-        observer.observe(el);
-        checkArrows();
-        return () => observer.disconnect();
-    }, [videos, checkArrows]);
-
-    const handleScroll = (direction: 'left' | 'right') => {
-        const el = scrollContainerRef.current;
-        if (!el) return;
-        const scrollAmount = el.clientWidth * 0.8;
-        el.scrollBy({ left: direction === 'left' ? -scrollAmount : scrollAmount, behavior: 'smooth' });
+    const handleClearClick = () => {
+        if (videos.length > 0) {
+            setIsConfirmOpen(true);
+        }
     };
 
-    if (videos.length === 0) {
-        return (
-            <div className="text-center py-8 px-4 rounded-lg bg-pink-100 dark:bg-rose-800">
-                <p className="text-rose-500 dark:text-rose-400">星マーク（☆）を押してお気に入りを追加すると、ここに表示されます。</p>
-            </div>
-        );
-    }
-    
+    const handleConfirmClear = () => {
+        onClearHistory();
+        setIsConfirmOpen(false);
+    };
+
     return (
-         <div className="relative">
-            {showLeftArrow && (
-                 <button onClick={() => handleScroll('left')} className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-10 bg-white/80 dark:bg-rose-800/80 backdrop-blur-sm rounded-full w-10 h-10 flex items-center justify-center shadow-lg" aria-label="左にスクロール">
-                    &lt;
-                </button>
-            )}
-            <div
-                ref={scrollContainerRef}
-                onScroll={checkArrows}
-                className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide"
-            >
-                {videos.map((video) => (
-                    <button
-                        key={video.id}
-                        onClick={() => onSelectVideo(video.id)}
-                        className={`
-                          flex-shrink-0 w-48 text-left rounded-lg overflow-hidden border-4 transition-all duration-200 bg-white dark:bg-rose-800
-                          ${currentVideoId === video.id ? 'border-indigo-500 shadow-xl scale-105' : 'border-transparent hover:border-indigo-400/50 dark:hover:border-indigo-600/50 hover:shadow-lg hover:-translate-y-1'}
-                        `}
-                    >
-                        <img src={video.thumbnailUrl} alt={video.title} className="w-full object-cover aspect-video" />
-                        <div className="p-2">
-                            <h3 className="text-sm font-semibold text-rose-800 dark:text-rose-200 truncate leading-tight">{video.title}</h3>
+        <>
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose} role="dialog" aria-modal="true">
+                <div className="bg-white dark:bg-rose-800 rounded-2xl shadow-2xl w-full max-w-2xl h-[70vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                    <header className="p-4 border-b border-pink-200 dark:border-rose-700 flex justify-between items-center flex-shrink-0">
+                        <h2 className="text-xl font-bold text-rose-800 dark:text-rose-200">再生履歴</h2>
+                        <div className="flex items-center gap-2">
+                            <button 
+                                onClick={handleClearClick} 
+                                disabled={videos.length === 0}
+                                className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-rose-700 dark:text-rose-300 bg-pink-100 dark:bg-rose-700 rounded-md hover:bg-pink-200 dark:hover:bg-rose-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="再生履歴を消去"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                <span>履歴を消去</span>
+                            </button>
+                            <button onClick={onClose} className="p-2 rounded-full text-rose-500 dark:text-rose-400 hover:bg-pink-200 dark:hover:bg-rose-700" aria-label="閉じる">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
                         </div>
-                    </button>
-                ))}
+                    </header>
+                    <div className="flex-grow overflow-y-auto p-4">
+                        {videos.length > 0 ? (
+                            <ul className="space-y-2">
+                                {videos.map((video) => {
+                                    const isFavorite = favoriteIds.includes(video.id);
+                                    return (
+                                        <li key={video.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-pink-100 dark:hover:bg-rose-700 transition-colors">
+                                            <button onClick={() => onSelectVideo(video.id)} className="flex items-center gap-3 flex-grow text-left w-full">
+                                                <img src={video.thumbnailUrl} alt={video.title} className="w-24 aspect-video object-cover rounded-md flex-shrink-0" />
+                                                <span className="text-sm font-medium text-rose-800 dark:text-rose-200">{video.title}</span>
+                                            </button>
+                                            <button onClick={() => onToggleFavorite(video.id)} className="p-2 rounded-full text-rose-400 hover:text-amber-500 transition-colors flex-shrink-0" aria-label={isFavorite ? 'お気に入りから削除' : 'お気に入りに追加'}>
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={1.5}>
+                                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                                </svg>
+                                            </button>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        ) : (
+                            <p className="text-center text-rose-500 dark:text-rose-400 mt-8">再生履歴はありません。</p>
+                        )}
+                    </div>
+                </div>
             </div>
-            {showRightArrow && (
-                 <button onClick={() => handleScroll('right')} className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-10 bg-white/80 dark:bg-rose-800/80 backdrop-blur-sm rounded-full w-10 h-10 flex items-center justify-center shadow-lg" aria-label="右にスクロール">
-                    &gt;
-                </button>
-            )}
+            <ConfirmationModal 
+                isOpen={isConfirmOpen}
+                onClose={() => setIsConfirmOpen(false)}
+                onConfirm={handleConfirmClear}
+                title="履歴の消去"
+                message="再生履歴をすべて消去しますか？この操作は元に戻せません。"
+            />
+        </>
+    );
+};
+
+const FavoritesModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    videos: Video[];
+    onSelectVideo: (id: string) => void;
+    onToggleFavorite: (id: string) => void;
+    onClearFavorites: () => void;
+}> = ({ isOpen, onClose, videos, onSelectVideo, onToggleFavorite, onClearFavorites }) => {
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+
+    if (!isOpen) return null;
+
+    const handleClearClick = () => {
+        if (videos.length > 0) {
+            setIsConfirmOpen(true);
+        }
+    };
+
+    const handleConfirmClear = () => {
+        onClearFavorites();
+        setIsConfirmOpen(false);
+    };
+
+    return (
+        <>
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose} role="dialog" aria-modal="true">
+                <div className="bg-white dark:bg-rose-800 rounded-2xl shadow-2xl w-full max-w-2xl h-[70vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                    <header className="p-4 border-b border-pink-200 dark:border-rose-700 flex justify-between items-center flex-shrink-0">
+                        <h2 className="text-xl font-bold text-rose-800 dark:text-rose-200">お気に入り</h2>
+                        <div className="flex items-center gap-2">
+                            <button 
+                                onClick={handleClearClick} 
+                                disabled={videos.length === 0}
+                                className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-rose-700 dark:text-rose-300 bg-pink-100 dark:bg-rose-700 rounded-md hover:bg-pink-200 dark:hover:bg-rose-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="お気に入りを消去"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                <span>お気に入りを消去</span>
+                            </button>
+                            <button onClick={onClose} className="p-2 rounded-full text-rose-500 dark:text-rose-400 hover:bg-pink-200 dark:hover:bg-rose-700" aria-label="閉じる">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </header>
+                    <div className="flex-grow overflow-y-auto p-4">
+                        {videos.length > 0 ? (
+                            <ul className="space-y-2">
+                                {videos.map((video) => (
+                                    <li key={video.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-pink-100 dark:hover:bg-rose-700 transition-colors">
+                                        <button onClick={() => onSelectVideo(video.id)} className="flex items-center gap-3 flex-grow text-left w-full">
+                                            <img src={video.thumbnailUrl} alt={video.title} className="w-24 aspect-video object-cover rounded-md flex-shrink-0" />
+                                            <span className="text-sm font-medium text-rose-800 dark:text-rose-200">{video.title}</span>
+                                        </button>
+                                        <button onClick={() => onToggleFavorite(video.id)} className="p-2 rounded-full text-amber-500 hover:text-amber-400 transition-colors flex-shrink-0" aria-label={'お気に入りから削除'}>
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill={'currentColor'} stroke="currentColor" strokeWidth={0.5}>
+                                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                            </svg>
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                             <p className="text-center text-rose-500 dark:text-rose-400 mt-8">星マーク（☆）を押してお気に入りを追加すると、ここに表示されます。</p>
+                        )}
+                    </div>
+                </div>
+            </div>
+            <ConfirmationModal 
+                isOpen={isConfirmOpen}
+                onClose={() => setIsConfirmOpen(false)}
+                onConfirm={handleConfirmClear}
+                title="お気に入りの消去"
+                message="お気に入りをすべて消去しますか？この操作は元に戻せません。"
+            />
+        </>
+    );
+};
+
+const ExplanationModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+}> = ({ isOpen, onClose }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="explanation-title">
+            <div className="bg-white dark:bg-rose-800 rounded-2xl shadow-2xl w-full max-w-2xl h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                <header className="p-4 border-b border-pink-200 dark:border-rose-700 flex justify-between items-center flex-shrink-0">
+                    <h2 id="explanation-title" className="text-xl font-bold text-rose-800 dark:text-rose-200">遊び方</h2>
+                    <button onClick={onClose} className="p-2 rounded-full text-rose-500 dark:text-rose-400 hover:bg-pink-200 dark:hover:bg-rose-700" aria-label="閉じる">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </header>
+                <div className="flex-grow overflow-y-auto p-6 space-y-6 text-rose-700 dark:text-rose-300">
+                    <div>
+                        <h3 className="text-lg font-bold text-rose-800 dark:text-rose-200 mb-2">基本操作</h3>
+                        <p>
+                            画面下の大きなボタンは、リズムゲームのように押して遊ぶためのものです。キーボードでも操作できます。
+                        </p>
+                        <ul className="list-disc list-inside mt-2 space-y-1 pl-4">
+                            <li><span className="font-semibold text-red-500">赤ボタン:</span> `W` キー</li>
+                            <li><span className="font-semibold text-green-500">緑ボタン:</span> `A` キー</li>
+                            <li><span className="font-semibold text-yellow-400">黄ボタン:</span> `D` キー</li>
+                        </ul>
+                         <p className="mt-2">
+                            ボタンを押すと効果音が鳴ります。お気に入りのステージに合わせて楽しんでください！
+                        </p>
+                    </div>
+
+                    <div>
+                        <h3 className="text-lg font-bold text-rose-800 dark:text-rose-200 mb-2">コントロールパネル</h3>
+                        <p>
+                            動画の上にあるボタンで、さまざまな操作ができます。
+                        </p>
+                        <ul className="mt-2 space-y-3 pl-2">
+                            <li><strong className="inline-block w-36">テーマ切り替え (☀️/🌙):</strong> 画面の見た目をライト/ダークで切り替えます。</li>
+                             <li><strong className="inline-block w-36">遊び方 (❓):</strong> この説明画面を開きます。</li>
+                            <li><strong className="inline-block w-36">おまかせ選曲 (☘️):</strong> 全ての動画の中からランダムに次の曲を再生します。</li>
+                            <li><strong className="inline-block w-36">お気に入り (⭐):</strong> お気に入り登録した動画リストを表示します。</li>
+                            <li><strong className="inline-block w-36">再生履歴 (🕒):</strong> 最近再生した動画のリストを表示します。</li>
+                            <li><strong className="inline-block w-36">動画追加 (➕):</strong> YouTubeのURLから新しい動画を追加します。</li>
+                            <li><strong className="inline-block w-36">選ぶ (リストアイコン):</strong> 全ての動画リストを表示・検索できます。</li>
+                        </ul>
+                    </div>
+                     <div>
+                        <h3 className="text-lg font-bold text-rose-800 dark:text-rose-200 mb-2">お気に入りの使い方</h3>
+                        <p>
+                           「選ぶ」画面や「再生履歴」画面の動画リストにある星マーク（☆）を押すことで、お気に入りに登録・解除できます。お気に入りに追加した動画は、お気に入り(⭐)ボタンからいつでも見返すことができます。
+                        </p>
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-rose-800 dark:text-rose-200 mb-2">音声について</h3>
+                        <p>
+                            最初の動画はミュートで再生されます。次の動画を選ぶ操作（おまかせ選曲など）をすると、自動的に音声がONになります。
+                            音を消したい場合は、動画プレイヤーにマウスカーソルを合わせると表示されるYouTubeのスピーカーアイコンで操作してください。
+                        </p>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };
@@ -517,13 +706,13 @@ const App: React.FC = () => {
     'WkcqB18K60c', 'TrTFIr8f-n0', 'NLi86WxjPvs', 'MXOBWa1DLCw', 'tfAep2L872E', 'itWdwzWn0Sk', 'z8_cmTbrlNw',
     'xE_Z_Ph7fYk', 'wfqZHr40e0k', 'uepx-pu_IOI', 'r3ZOW5AQRis', 'oo6cucd8FGY', 'mNCv-dmYPS8', 'ltcZaHcarug',
     'h0kOl31dJoM', 'fXluHhS6IGQ', 'f9eRf6ccrAs', 'bWDAyRa6rGU', 'a86i2NFElAk', 'TX414PPKQTA', 'QqJs_d5PWzw',
-    'KsORl3_jgMQ', 'KIKPbfhYxPY', 'ItzPBWP614E', 'I8rX7mfQd90', 'HvtKsOu48JU', 'GtXHDzY1yCA', 'DjraTjOS0c4',
+    'KsORl3_jgMQ', 'KIKPbfhYxPY', 'ItzPBWP614E', 'I8rX7mfQd90', 'HvtKsOu48JU', 'GtXHDzYyCA', 'DjraTjOS0c4',
     'BDu-c8m3Elo', '9-ITMd0_Hmc', '3lFpoJyNmSs', '3ULbpMIz32w', 'Q1zHZ_5WoQo', 'm0FGgFsMpNc', 'K2uy7wGFFgw',
     '1x9rWKtrn9Y', 'Vnobd_FDp48', 'H5miyoLIaGk', 'ZLIqln6BSGI', 'Oqepld-YRaE', 'i_NnjpotJ5M', '5r3snDugV8M',
     'zv7he_TKHpg', 'q2tjrV2JiZY', 'kibfnTlnKBs', 'hihAM-CQyzM', 'cYstuM4CYsU', 'mkdEmQ5RttE', 'XO_2jNhCqTw',
     'VWrSZ8BjIyA', 'KbYs5YYUK7I', '2ZNxFC--4fE', 'qJ3YJ4eywvY', '1vYteBXaOyI', 'lsFTKcP9EyA', 'bz6ejOvk2_U',
     'vHnENRwluK0', 'htnIF4hkZ40', 'lZ_3EU7X3yA', 'PUR0XbH4LrQ', 'Foyc6FTiRnA', 'oz9aqDD7F_c', 'uOSDgSH_T80',
-    '22vPY_1OaLY', 'J_1DFaELLPU', 'THoRA3aT4og', 'SYEqF_FY5Qo', '_Vdv7TjMZzQ', 'LW9ho4Ftjh8', 'sLtVMfyuQfk',
+    '22vPY_1OaLY', 'J_1DFaELLPU', 'THoRA3aT4og', 'SYEqF_FY5Qo', '_Vdv7jMZzQ', 'LW9ho4Ftjh8', 'sLtVMfyuQfk',
     'AyNw00TNrCA', 'cvArV6EOysI', 'm3zcqWEBrI4', 'YPxyfDqAmYU', 'o545mbzprw4', 'O5BisaR_30Y', 'FyG3JM9_Ga0',
     'BaMR9ZcA8NU', 'AiWGcDOnFhM', 'o3IYLSbYac4', 'cvy9ts-rNTE', 'KS83f4N0pwU', 'CJUtJQ1rzg4', 'slnfBIWMni4',
     'WdpK14OXYB4', '0sZE4i8Y7k4', 'hF6YDrfCqbQ', 'dYVD26j9ZSc', 'bu5dmV11-ok', 'bh3QyscC4z4', '4KtjvHTq5jY',
@@ -555,11 +744,23 @@ const App: React.FC = () => {
   const gameControlsRef = useRef<GameControlsHandle>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [favoriteIds, setFavoriteIds] = useLocalStorageState<string[]>('favoriteVideoIds', []);
+  const [historyIds, setHistoryIds] = useLocalStorageState<string[]>('videoHistoryIds', []);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [isFavoritesModalOpen, setIsFavoritesModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isExplanationModalOpen, setIsExplanationModalOpen] = useState(false);
+
 
   const favoriteVideos = useMemo(() => {
     const favoriteVideoMap = new Map(videos.map(v => [v.id, v]));
     return favoriteIds.map(id => favoriteVideoMap.get(id)).filter((v): v is Video => v !== undefined);
   }, [videos, favoriteIds]);
+  
+  const historyVideos = useMemo(() => {
+    if (historyIds.length === 0) return [];
+    const videoMap = new Map(videos.map(v => [v.id, v]));
+    return historyIds.map(id => videoMap.get(id)).filter((v): v is Video => v !== undefined);
+  }, [videos, historyIds]);
 
   const fetchVideoDetails = useCallback(async (ids: string[]): Promise<Video[]> => {
       try {
@@ -600,15 +801,37 @@ const App: React.FC = () => {
     loadInitialVideos();
   }, [fetchVideoDetails, initialVideoIds]);
 
-  const handleSelectNewVideo = (id: string) => {
+  useEffect(() => {
+    if (videoId) {
+        setHistoryIds(prevHistory => {
+            const newHistory = [videoId, ...prevHistory.filter(id => id !== videoId)];
+            return newHistory.slice(0, 20);
+        });
+    }
+  }, [videoId, setHistoryIds]);
+
+  const handleSelectNewVideo = useCallback((id: string) => {
     if (videoId !== id) {
       setVideoId(id);
     }
-  };
+    if (isMuted) {
+      setIsMuted(false);
+    }
+  }, [videoId, isMuted, setIsMuted]);
 
   const handleSelectVideoFromModal = (id: string) => {
     handleSelectNewVideo(id);
-    setIsModalOpen(false); // Also close the modal
+    setIsModalOpen(false);
+  };
+
+  const handleSelectVideoFromHistory = (id: string) => {
+    handleSelectNewVideo(id);
+    setIsHistoryModalOpen(false);
+  };
+
+  const handleSelectVideoFromFavorites = (id: string) => {
+    handleSelectNewVideo(id);
+    setIsFavoritesModalOpen(false);
   };
 
   const handleToggleFavorite = (id: string) => {
@@ -630,7 +853,8 @@ const App: React.FC = () => {
     }
 
     if (videos.some(v => v.id === newVideoId)) {
-        handleSelectVideoFromModal(newVideoId);
+        handleSelectNewVideo(newVideoId);
+        setIsAddModalOpen(false);
         return;
     }
 
@@ -638,7 +862,8 @@ const App: React.FC = () => {
         const fetchedVideo = await fetchVideoDetails([newVideoId]);
         if (fetchedVideo.length > 0) {
             setVideos(prevVideos => [fetchedVideo[0], ...prevVideos]);
-            handleSelectVideoFromModal(newVideoId);
+            handleSelectNewVideo(newVideoId);
+            setIsAddModalOpen(false);
         } else {
             throw new Error('動画情報の取得に失敗しました。');
         }
@@ -646,10 +871,14 @@ const App: React.FC = () => {
         console.error("動画情報の取得中にエラーが発生しました:", error);
         throw new Error('動画の追加に失敗しました。URLを確認してください。');
     }
-  }, [videos, fetchVideoDetails]);
+  }, [videos, fetchVideoDetails, handleSelectNewVideo, setVideos, setIsAddModalOpen]);
   
   const handleResetFavorites = () => {
       setFavoriteIds([]);
+  };
+
+  const handleClearHistory = () => {
+    setHistoryIds([]);
   };
 
   const handleResetUserVideos = () => {
@@ -671,7 +900,6 @@ const App: React.FC = () => {
     if (videos.length <= 1) return;
 
     let newVideoId: string;
-    // This loop is guaranteed to terminate if videos.length > 1
     do {
         const randomIndex = Math.floor(Math.random() * videos.length);
         newVideoId = videos[randomIndex].id;
@@ -712,40 +940,36 @@ const App: React.FC = () => {
 
   return (
     <>
-    <main className="bg-pink-50 dark:bg-rose-900 min-h-screen flex flex-col items-center justify-start p-4 sm:p-6 lg:p-8 font-sans transition-colors duration-300">
+    <main className="bg-gradient-to-b from-pink-50 to-white dark:from-rose-900 dark:to-rose-950 min-h-screen flex flex-col items-center justify-start p-4 sm:p-6 lg:p-8 font-sans">
       <div className="w-full max-w-5xl mx-auto">
-        <header className="relative text-center mb-6">
-            <div className="absolute top-0 right-0 z-30">
-                <button
-                    onClick={toggleTheme}
-                    className="p-2 rounded-full text-rose-500 dark:text-rose-400 hover:bg-pink-200 dark:hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-rose-900"
-                    aria-label="Toggle theme"
-                >
-                    {theme === 'light' ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                    </svg>
-                    ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                    </svg>
-                    )}
-                </button>
-            </div>
-          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-rose-900 dark:text-rose-100 drop-shadow-lg">
-            アイカツ！気分
-          </h1>
-        </header>
-
-        <div className="w-full max-w-4xl mx-auto mb-6">
-            {isLoading ? (
-                <p className="text-center text-rose-500 dark:text-rose-400">動画リストを読み込み中...</p>
+        
+        <div className="flex justify-center items-center gap-4 my-8">
+          <button
+            onClick={toggleTheme}
+            className="flex items-center justify-center w-12 h-12 bg-white dark:bg-rose-800 border border-pink-300 dark:border-rose-700 rounded-lg text-rose-900 dark:text-rose-200 hover:bg-pink-100 dark:hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-pink-50 dark:ring-offset-rose-900 focus:ring-indigo-500 transition-all duration-200"
+            aria-label="Toggle theme"
+            title="テーマ切り替え"
+          >
+            {theme === 'light' ? (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              </svg>
             ) : (
-                <FavoritesCarousel videos={favoriteVideos} onSelectVideo={handleSelectNewVideo} currentVideoId={videoId} />
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
             )}
-        </div>
-
-        <div className="flex justify-center items-center gap-4 mb-8">
+          </button>
+           <button
+                onClick={() => setIsExplanationModalOpen(true)}
+                className="flex items-center justify-center w-12 h-12 bg-white dark:bg-rose-800 border border-pink-300 dark:border-rose-700 rounded-lg text-rose-900 dark:text-rose-200 hover:bg-pink-100 dark:hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-pink-50 dark:ring-offset-rose-900 focus:ring-indigo-500 transition-all duration-200"
+                aria-label="遊び方を表示"
+                title="遊び方"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </button>
           <button
             onClick={handleFeelingLucky}
             className="flex items-center justify-center w-12 h-12 bg-white dark:bg-rose-800 border border-pink-300 dark:border-rose-700 rounded-lg text-2xl text-rose-900 dark:text-rose-200 hover:bg-pink-100 dark:hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-pink-50 dark:ring-offset-rose-900 focus:ring-indigo-500 transition-all duration-200"
@@ -755,42 +979,63 @@ const App: React.FC = () => {
             <span>☘️</span>
           </button>
           <button
+            onClick={() => setIsFavoritesModalOpen(true)}
+            className="flex items-center justify-center w-12 h-12 bg-white dark:bg-rose-800 border border-pink-300 dark:border-rose-700 rounded-lg text-rose-900 dark:text-rose-200 hover:bg-pink-100 dark:hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-pink-50 dark:ring-offset-rose-900 focus:ring-indigo-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="お気に入りを表示"
+            title="お気に入り"
+            disabled={favoriteIds.length === 0}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+            </svg>
+          </button>
+          <button
+            onClick={() => setIsHistoryModalOpen(true)}
+            className="flex items-center justify-center w-12 h-12 bg-white dark:bg-rose-800 border border-pink-300 dark:border-rose-700 rounded-lg text-rose-900 dark:text-rose-200 hover:bg-pink-100 dark:hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-pink-50 dark:ring-offset-rose-900 focus:ring-indigo-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="再生履歴を表示"
+            title="再生履歴"
+            disabled={historyIds.length === 0}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+           <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex items-center justify-center w-12 h-12 bg-white dark:bg-rose-800 border border-pink-300 dark:border-rose-700 rounded-lg text-rose-900 dark:text-rose-200 hover:bg-pink-100 dark:hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-pink-50 dark:ring-offset-rose-900 focus:ring-indigo-500 transition-all duration-200"
+            title="動画を追加"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+          <button
             onClick={() => setIsModalOpen(true)}
-            className="inline-flex items-center justify-center gap-2 w-48 px-4 py-3 bg-indigo-600 border border-transparent rounded-lg text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-pink-50 dark:ring-offset-rose-900 focus:ring-indigo-500 transition-all duration-200 font-semibold"
+            className="inline-flex items-center justify-center gap-2 w-32 px-4 py-3 bg-white dark:bg-rose-800 border border-pink-300 dark:border-rose-700 rounded-lg text-rose-900 dark:text-rose-200 hover:bg-pink-100 dark:hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-pink-50 dark:ring-offset-rose-900 focus:ring-indigo-500 transition-all duration-200 font-semibold"
           >
              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a1 1 0 011-1h14a1 1 0 110 2H3a1 1 0 01-1-1z" />
             </svg>
-            <span>動画を選ぶ</span>
-          </button>
-          <button
-            onClick={() => setIsMuted(!isMuted)}
-            className="flex items-center justify-center gap-2 w-40 px-4 py-3 bg-white dark:bg-rose-800 border border-pink-300 dark:border-rose-700 rounded-lg text-rose-900 dark:text-rose-200 hover:bg-pink-100 dark:hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-pink-50 dark:ring-offset-rose-900 focus:ring-indigo-500 transition-all duration-200"
-            aria-label={isMuted ? "ミュートを解除する" : "動画をミュートする"}
-          >
-            {isMuted ? (
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 9.75 19.5 12m0 0 2.25 2.25M19.5 12l-2.25 2.25M19.5 12l2.25-2.25M15.75 15.75l-2.489-2.489m0 0a3.375 3.375 0 1 0-4.773-4.773 3.375 3.375 0 0 0 4.774 4.774ZM6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" />
-              </svg>
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" />
-              </svg>
-            )}
-            <span className="font-semibold">{isMuted ? '音声ON' : '音声OFF'}</span>
+            <span>選ぶ</span>
           </button>
         </div>
         
         <div className="w-full aspect-video rounded-2xl shadow-2xl overflow-hidden bg-black ring-4 ring-offset-4 ring-offset-pink-50 dark:ring-offset-rose-900 ring-indigo-600">
-          <iframe
-            key={videoId}
-            className="w-full h-full"
-            src={embedUrl}
-            title="YouTube video player"
-            frameBorder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-          ></iframe>
+          {isLoading ? (
+             <div className="w-full h-full flex items-center justify-center">
+                <p className="text-white text-lg">動画を読み込み中...</p>
+             </div>
+          ) : (
+            <iframe
+                key={videoId}
+                className="w-full h-full"
+                src={embedUrl}
+                title="YouTube video player"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+            ></iframe>
+          )}
         </div>
         
         <GameControls ref={gameControlsRef} soundType="tick" />
@@ -807,11 +1052,36 @@ const App: React.FC = () => {
         onSelectVideo={handleSelectVideoFromModal}
         favoriteIds={favoriteIds}
         onToggleFavorite={handleToggleFavorite}
-        onAddVideo={handleAddVideo}
         onResetFavorites={handleResetFavorites}
         onResetUserVideos={handleResetUserVideos}
         isFavoritesResettable={isFavoritesResettable}
         isUserVideosResettable={isUserVideosResettable}
+    />
+     <AddVideoModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onAddVideo={handleAddVideo}
+    />
+    <HistoryModal
+        isOpen={isHistoryModalOpen}
+        onClose={() => setIsHistoryModalOpen(false)}
+        videos={historyVideos}
+        onSelectVideo={handleSelectVideoFromHistory}
+        onClearHistory={handleClearHistory}
+        favoriteIds={favoriteIds}
+        onToggleFavorite={handleToggleFavorite}
+    />
+    <FavoritesModal
+        isOpen={isFavoritesModalOpen}
+        onClose={() => setIsFavoritesModalOpen(false)}
+        videos={favoriteVideos}
+        onSelectVideo={handleSelectVideoFromFavorites}
+        onToggleFavorite={handleToggleFavorite}
+        onClearFavorites={handleResetFavorites}
+    />
+    <ExplanationModal
+        isOpen={isExplanationModalOpen}
+        onClose={() => setIsExplanationModalOpen(false)}
     />
     </>
   );
