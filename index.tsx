@@ -641,6 +641,7 @@ const ExplanationModal: React.FC<{
                         <ul className="mt-2 space-y-3 pl-2">
                             <li><strong className="inline-block w-36">テーマ切り替え (☀️/🌙):</strong> 画面の見た目をライト/ダークで切り替えます。</li>
                              <li><strong className="inline-block w-36">遊び方 (❓):</strong> この説明画面を開きます。</li>
+                            <li><strong className="inline-block w-36">フルスクリーン:</strong> 画面をフルスクリーン表示に切り替えます。</li>
                             <li><strong className="inline-block w-36">おまかせ選曲 (☘️):</strong> 全ての動画の中からランダムに次の曲を再生します。</li>
                             <li><strong className="inline-block w-36">お気に入り (⭐):</strong> お気に入り登録した動画リストを表示します。</li>
                             <li><strong className="inline-block w-36">再生履歴 (🕒):</strong> 最近再生した動画のリストを表示します。</li>
@@ -749,6 +750,37 @@ const App: React.FC = () => {
   const [isFavoritesModalOpen, setIsFavoritesModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isExplanationModalOpen, setIsExplanationModalOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+            console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+        });
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    }
+  }, []);
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+        setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+    document.addEventListener('mozfullscreenchange', onFullscreenChange);
+    document.addEventListener('MSFullscreenChange', onFullscreenChange);
+
+    return () => {
+        document.removeEventListener('fullscreenchange', onFullscreenChange);
+        document.removeEventListener('webkitfullscreenchange', onFullscreenChange);
+        document.removeEventListener('mozfullscreenchange', onFullscreenChange);
+        document.removeEventListener('MSFullscreenChange', onFullscreenChange);
+    };
+  }, []);
 
 
   const favoriteVideos = useMemo(() => {
@@ -969,6 +1001,22 @@ const App: React.FC = () => {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
+            </button>
+            <button
+                onClick={toggleFullscreen}
+                className="flex items-center justify-center w-12 h-12 bg-white dark:bg-rose-800 border border-pink-300 dark:border-rose-700 rounded-lg text-rose-900 dark:text-rose-200 hover:bg-pink-100 dark:hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-pink-50 dark:ring-offset-rose-900 focus:ring-indigo-500 transition-all duration-200"
+                aria-label={isFullscreen ? "フルスクリーン解除" : "フルスクリーン"}
+                title={isFullscreen ? "フルスクリーン解除" : "フルスクリーン"}
+            >
+                {isFullscreen ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M10 14L4 20m0 0v-6m0 6h6m10-10l-6-6m0 0v6m0-6h-6" />
+                    </svg>
+                ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 1v4m0 0h-4m4 0l-5-5" />
+                    </svg>
+                )}
             </button>
           <button
             onClick={handleFeelingLucky}
